@@ -165,7 +165,7 @@ golangci-lint:
 #
 
 install-protoc install-protobuf:
-	$(Q)./scripts/install-protobuf && \
+	$(Q)./scripts/install-protobuf
 
 install-ttrpc-plugin:
 	$(Q)$(GO_INSTALL) github.com/containerd/ttrpc/cmd/protoc-gen-go-ttrpc@74421d10189e8c118870d294c9f7f62db2d33ec1
