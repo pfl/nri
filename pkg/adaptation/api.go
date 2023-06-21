@@ -62,6 +62,8 @@ type (
 
 	AdjustPodSandboxNetworkRequest        = api.AdjustPodSandboxNetworkRequest
 	AdjustPodSandboxNetworkResponse       = api.AdjustPodSandboxNetworkResponse
+	CreatePodSandboxNetworkConfRequest    = api.CreatePodSandboxNetworkConfRequest
+	CreatePodSandboxNetworkConfResponse   = api.CreatePodSandboxNetworkConfResponse
 
 	PodSandbox               = api.PodSandbox
 	LinuxPodSandbox          = api.LinuxPodSandbox
@@ -89,6 +91,7 @@ type (
 	NetworkBandwidth         = api.NetworkBandwidth
 	NetworkPortMappings      = api.NetworkPortMappings
 	NetworkDNS               = api.NetworkDNS
+	CreateNetworkConf        = api.CreateNetworkConf
 
 	EventMask = api.EventMask
 )

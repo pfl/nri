@@ -511,6 +511,28 @@ func (p *plugin) adjustPodSandboxNetwork(ctx context.Context, req* AdjustPodSand
 	return rpl, nil
 }
 
+func (p *plugin) createPodSandboxNetworkConf(ctx context.Context, req* CreatePodSandboxNetworkConfRequest) (*CreatePodSandboxNetworkConfResponse, error) {
+	if !p.events.IsSet(Event_ADJUST_POD_SANDBOX_NETWORK) {
+		return nil, nil
+	}
+
+	ctx, cancel := context.WithTimeout(ctx, getPluginRequestTimeout())
+	defer cancel()
+
+	rpl, err := p.stub.CreatePodSandboxNetworkConf(ctx, req)
+	if err != nil {
+		if isFatalError(err) {
+			log.Errorf(ctx, "closing plugin %s, failed to handle CreatePodSandboxNetworkConf request: %v",
+				p.name(), err)
+			p.close()
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	return rpl, nil
+}
+
 // Relay other pod or container state change events to the plugin.
 func (p *plugin) StateChange(ctx context.Context, evt *StateChangeEvent) error {
 	if !p.events.IsSet(evt.Event) {

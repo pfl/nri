@@ -321,6 +321,7 @@ type mockPlugin struct {
 	stopContainer       func(*mockPlugin, *api.PodSandbox, *api.Container) ([]*api.ContainerUpdate, error)
 	removeContainer     func(*mockPlugin, *api.PodSandbox, *api.Container) error
 	adjustPodSandboxNetwork       func(*mockPlugin, *api.PodSandbox, []*api.NetworkConfiguration) ([]*api.NetworkConfiguration, error)
+	createPodSandboxNetworkConf   func(*mockPlugin, []*api.CreateNetworkConf)  ([]*api.CreateNetworkConf, error)  
 }
 
 var (
@@ -338,6 +339,7 @@ var (
 	_ = stub.PostStartContainerInterface(&mockPlugin{})
 	_ = stub.PostUpdateContainerInterface(&mockPlugin{})
 	_ = stub.AdjustPodSandboxNetworkInterface(&mockPlugin{})
+	_ = stub.CreatePodSandboxNetworkConfInterface(&mockPlugin{})
 )
 
 func (m *mockPlugin) Log(format string, args ...interface{}) {
@@ -436,6 +438,9 @@ func (m *mockPlugin) Init(dir string) error {
 	}
 	if m.adjustPodSandboxNetwork == nil {
 		m.adjustPodSandboxNetwork = nopAdjustPodSandboxNetwork
+	}
+	if m.createPodSandboxNetworkConf == nil {
+		m.createPodSandboxNetworkConf = nopCreatePodSandboxNetworkConf
 	}
 	return nil
 }
@@ -588,6 +593,11 @@ func (m *mockPlugin) AdjustPodSandboxNetwork(pod *api.PodSandbox, networks []*ap
 	return m.adjustPodSandboxNetwork(m, pod, networks)
 }
 
+func (m *mockPlugin) CreatePodSandboxNetworkConf(conf []*api.CreateNetworkConf) ([]*api.CreateNetworkConf, error) {
+	// TBD: Need to create a new family of events if there is no associated PodSandbox?
+	return nil, nil
+}
+
 func nopEvent(*mockPlugin, *api.PodSandbox, *api.Container) error {
 	return nil
 }
@@ -605,6 +615,10 @@ func nopStopContainer(*mockPlugin, *api.PodSandbox, *api.Container) ([]*api.Cont
 }
 
 func nopAdjustPodSandboxNetwork(*mockPlugin, *api.PodSandbox, []*api.NetworkConfiguration) ([]*api.NetworkConfiguration, error) {
+	return nil, nil
+}
+
+func nopCreatePodSandboxNetworkConf(*mockPlugin, []*api.CreateNetworkConf) ([]*api.CreateNetworkConf, error) {
 	return nil, nil
 }
 

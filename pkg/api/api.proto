@@ -108,6 +108,9 @@ service Plugin {
 
   //
   rpc AdjustPodSandboxNetwork(AdjustPodSandboxNetworkRequest) returns (AdjustPodSandboxNetworkResponse);
+
+  //
+  rpc CreatePodSandboxNetworkConf(CreatePodSandboxNetworkConfRequest) returns (CreatePodSandboxNetworkConfResponse);
 }
 
 message ConfigureRequest {
@@ -195,6 +198,19 @@ message StateChangeEvent {
 // Empty response for those *Requests that are semantically events.
 message Empty {}
 
+message CreatePodSandboxNetworkConfRequest {
+  repeated CreateNetworkConf NetworkConf = 1;
+}
+
+message CreatePodSandboxNetworkConfResponse {
+  repeated CreateNetworkConf NetworkConf = 1;
+}
+
+message CreateNetworkConf {
+  string NetworkType = 1;
+  string Source = 2;
+}
+
 message AdjustPodSandboxNetworkRequest {
   PodSandbox pod = 1;
   repeated NetworkConfiguration networkconfiguration = 2;
@@ -248,7 +264,8 @@ enum Event {
   STOP_CONTAINER = 10;
   REMOVE_CONTAINER = 11;
   ADJUST_POD_SANDBOX_NETWORK = 12;
-  LAST = 13;
+  CREATE_POD_SANDBOX_NETWORK_CONF = 13;
+  LAST = 14;
 }
 
 // Pod metadata that is considered relevant for a plugin.

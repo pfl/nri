@@ -138,6 +138,9 @@ type PostUpdateContainerInterface interface {
 type AdjustPodSandboxNetworkInterface interface {
 	AdjustPodSandboxNetwork(*api.PodSandbox, []*api.NetworkConfiguration) ([]*api.NetworkConfiguration, error)
 }
+
+type CreatePodSandboxNetworkConfInterface interface {
+	CreatePodSandboxNetworkConf([]*api.CreateNetworkConf) ([]*api.CreateNetworkConf, error)
 }
 
 // Stub is the interface the stub provides for the plugin implementation.
@@ -273,6 +276,7 @@ type handlers struct {
 	PostStartContainer  func(*api.PodSandbox, *api.Container) error
 	PostUpdateContainer func(*api.PodSandbox, *api.Container) error
 	AdjustPodSandboxNetwork func(*api.PodSandbox, []*api.NetworkConfiguration) ([]*api.NetworkConfiguration, error)
+	CreatePodSandboxNetworkConf func([]*api.CreateNetworkConf) ([]*api.CreateNetworkConf, error)
 }
 
 // New creates a stub with the given plugin and options.
@@ -654,6 +658,18 @@ func (stub *stub) AdjustPodSandboxNetwork(ctx context.Context, req *api.AdjustPo
 	}, err
 }
 
+func (stub *stub) CreatePodSandboxNetworkConf(ctx context.Context, req *api.CreatePodSandboxNetworkConfRequest) (*api.CreatePodSandboxNetworkConfResponse, error) {
+	handler := stub.handlers.CreatePodSandboxNetworkConf
+	if handler == nil {
+		return nil, nil
+	}
+	conf, err := handler(req.NetworkConf)
+	return &api.CreatePodSandboxNetworkConfResponse{
+		NetworkConf: conf,
+	}, err
+
+}
+
 // StateChange event handler.
 func (stub *stub) StateChange(ctx context.Context, evt *api.StateChangeEvent) (*api.Empty, error) {
 	var err error
@@ -777,6 +793,11 @@ func (stub *stub) setupHandlers() error {
 	if plugin, ok := stub.plugin.(AdjustPodSandboxNetworkInterface); ok {
 		stub.handlers.AdjustPodSandboxNetwork = plugin.AdjustPodSandboxNetwork
 		stub.events.Set(api.Event_ADJUST_POD_SANDBOX_NETWORK)
+	}
+
+	if plugin, ok := stub.plugin.(CreatePodSandboxNetworkConfInterface); ok {
+		stub.handlers.CreatePodSandboxNetworkConf = plugin.CreatePodSandboxNetworkConf
+		stub.events.Set(api.Event_CREATE_POD_SANDBOX_NETWORK_CONF)
 	}
 
 	if stub.events == 0 {
