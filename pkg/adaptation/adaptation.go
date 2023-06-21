@@ -276,6 +276,25 @@ func (r *Adaptation) RemoveContainer(ctx context.Context, evt *StateChangeEvent)
 	return r.StateChange(ctx, evt)
 }
 
+func (r *Adaptation) AdjustPodSandboxNetwork(ctx context.Context, req *AdjustPodSandboxNetworkRequest) (*AdjustPodSandboxNetworkResponse, error) {
+	r.Lock()
+	defer r.Unlock()
+	defer r.removeClosedPlugins()
+
+	result := collectAdjustPodSandboxNetworkResult(req)
+	for _, plugin := range r.plugins {
+		reply, err := plugin.adjustPodSandboxNetwork(ctx, req)
+		if err != nil {
+			return nil, err
+		}
+		err = result.apply(reply, plugin.name())
+		if err != nil {
+			return nil, err
+		}
+	}
+	return result.adjustPodSandboxNetworkResponse(), nil
+}
+
 // StateChange relays pod- or container events to plugins.
 func (r *Adaptation) StateChange(ctx context.Context, evt *StateChangeEvent) error {
 	if evt.Event == Event_UNKNOWN {

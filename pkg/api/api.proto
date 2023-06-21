@@ -105,6 +105,9 @@ service Plugin {
   // plugin-specific processing which needs to occur in connection with any of
   // these events.
   rpc StateChange(StateChangeEvent) returns (Empty);
+
+  //
+  rpc AdjustPodSandboxNetwork(AdjustPodSandboxNetworkRequest) returns (AdjustPodSandboxNetworkResponse);
 }
 
 message ConfigureRequest {
@@ -192,6 +195,44 @@ message StateChangeEvent {
 // Empty response for those *Requests that are semantically events.
 message Empty {}
 
+message AdjustPodSandboxNetworkRequest {
+  PodSandbox pod = 1;
+  repeated NetworkConfiguration networkconfiguration = 2;
+}
+
+message AdjustPodSandboxNetworkResponse {
+  repeated NetworkConfiguration networkconfiguration = 1;
+}
+
+message NetworkConfiguration {
+  string InterfaceName = 1;
+  string DeviceID = 2;
+  string QoSClass = 3;
+  map<string, string> Labels = 4;
+  NetworkBandwidth Bandwidth = 5;
+  repeated NetworkPortMappings PortMappings = 6;
+  NetworkDNS DNS = 7;
+}
+
+message NetworkBandwidth {
+  uint64 IngressRate = 1;
+  uint64 IngressBurst = 2;
+  uint64 EgressRate = 3;
+  uint64 EgressBurst = 4;
+}
+
+message NetworkPortMappings {
+  int32 HostPort = 1;
+  int32 ContainerPort = 2;
+  string Protocol = 3;
+}
+
+message NetworkDNS {
+  repeated string Servers = 1;
+  repeated string Searches = 2;
+  repeated string Options = 3;
+}
+
 // Events that plugins can subscribe to in ConfigureResponse.
 enum Event {
   UNKNOWN = 0;
@@ -206,7 +247,8 @@ enum Event {
   POST_UPDATE_CONTAINER = 9;
   STOP_CONTAINER = 10;
   REMOVE_CONTAINER = 11;
-  LAST = 12;
+  ADJUST_POD_SANDBOX_NETWORK = 12;
+  LAST = 13;
 }
 
 // Pod metadata that is considered relevant for a plugin.
