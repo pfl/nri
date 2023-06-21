@@ -43,6 +43,7 @@ PLUGINS := \
 	$(BIN_PATH)/hook-injector \
 	$(BIN_PATH)/differ \
 	$(BIN_PATH)/v010-adapter \
+	$(BIN_PATH)/adjustpodsandboxnetwork \
 	$(BIN_PATH)/template
 
 
@@ -110,6 +111,10 @@ $(BIN_PATH)/v010-adapter: $(wildcard plugins/v010-adapter/*.go)
 	cd $(dir $<) && $(GO_BUILD) -o $@ .
 
 $(BIN_PATH)/template: $(wildcard plugins/template/*.go)
+	$(Q)echo "Building $@..."; \
+	cd $(dir $<) && $(GO_BUILD) -o $@ .
+
+$(BIN_PATH)/adjustpodsandboxnetwork: $(wildcard plugins/adjustpodsandboxnetwork/*.go)
 	$(Q)echo "Building $@..."; \
 	cd $(dir $<) && $(GO_BUILD) -o $@ .
 
