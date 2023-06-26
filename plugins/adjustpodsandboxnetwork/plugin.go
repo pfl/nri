@@ -114,6 +114,16 @@ func (p *plugin) AdjustPodSandboxNetwork(pod *api.PodSandbox, networkconfigs []*
 	return returnconfigs, nil
 }
 
+func (p *plugin) CreatePodSandboxNetworkConf(networkconf []*api.CreateNetworkConf) ([]*api.CreateNetworkConf, error) {
+	log.Infof("Create pod sandbox network for...")
+
+	for i, network := range networkconf {
+		log.Infof("Network %d type %s...", i, network.NetworkType)
+	}
+
+	return nil, nil
+}
+
 func (p *plugin) onClose() {
 	log.Infof("Connection to the runtime lost, exiting...")
 	os.Exit(0)
