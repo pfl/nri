@@ -320,6 +320,7 @@ type mockPlugin struct {
 	postUpdateContainer func(*mockPlugin, *api.PodSandbox, *api.Container) error
 	stopContainer       func(*mockPlugin, *api.PodSandbox, *api.Container) ([]*api.ContainerUpdate, error)
 	removeContainer     func(*mockPlugin, *api.PodSandbox, *api.Container) error
+	adjustPodSandboxNetwork       func(*mockPlugin, *api.PodSandbox, []*api.NetworkConfiguration) ([]*api.NetworkConfiguration, error)
 }
 
 var (
@@ -336,6 +337,7 @@ var (
 	_ = stub.PostCreateContainerInterface(&mockPlugin{})
 	_ = stub.PostStartContainerInterface(&mockPlugin{})
 	_ = stub.PostUpdateContainerInterface(&mockPlugin{})
+	_ = stub.AdjustPodSandboxNetworkInterface(&mockPlugin{})
 )
 
 func (m *mockPlugin) Log(format string, args ...interface{}) {
@@ -432,7 +434,9 @@ func (m *mockPlugin) Init(dir string) error {
 	if m.removeContainer == nil {
 		m.removeContainer = nopEvent
 	}
-
+	if m.adjustPodSandboxNetwork == nil {
+		m.adjustPodSandboxNetwork = nopAdjustPodSandboxNetwork
+	}
 	return nil
 }
 
@@ -577,6 +581,13 @@ func (m *mockPlugin) RemoveContainer(_ context.Context, pod *api.PodSandbox, ctr
 	return m.removeContainer(m, pod, ctr)
 }
 
+func (m *mockPlugin) AdjustPodSandboxNetwork(pod *api.PodSandbox, networks []*api.NetworkConfiguration) ([]*api.NetworkConfiguration, error) {
+	m.pods[pod.Id] = pod
+	m.q.Add(PodSandboxEvent(pod, AdjustPodSandboxNetwork))
+
+	return m.adjustPodSandboxNetwork(m, pod, networks)
+}
+
 func nopEvent(*mockPlugin, *api.PodSandbox, *api.Container) error {
 	return nil
 }
@@ -590,6 +601,10 @@ func nopUpdateContainer(*mockPlugin, *api.PodSandbox, *api.Container, *api.Linux
 }
 
 func nopStopContainer(*mockPlugin, *api.PodSandbox, *api.Container) ([]*api.ContainerUpdate, error) {
+	return nil, nil
+}
+
+func nopAdjustPodSandboxNetwork(*mockPlugin, *api.PodSandbox, []*api.NetworkConfiguration) ([]*api.NetworkConfiguration, error) {
 	return nil, nil
 }
 
@@ -616,6 +631,7 @@ const (
 	PostCreateContainer = "PostCreateContainer"
 	PostStartContainer  = "PostStartContainer"
 	PostUpdateContainer = "PostUpdateContainer"
+	AdjustPodSandboxNetwork       = "AdjustPodSandboxNetwork"
 
 	Error   = "Error"
 	Timeout = ""
