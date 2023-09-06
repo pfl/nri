@@ -29,13 +29,18 @@ type result struct {
 }
 
 type resultRequest struct {
-	create *CreateContainerRequest
-	update *UpdateContainerRequest
+	create           *CreateContainerRequest
+	update           *UpdateContainerRequest
+	presetupnetwork  *PreSetupNetworkRequest
+	postsetupnetwork *PostSetupNetworkRequest
 }
 
 type resultReply struct {
-	adjust *ContainerAdjustment
-	update []*ContainerUpdate
+	adjust          *ContainerAdjustment
+	update          []*ContainerUpdate
+	cniconfig       []*CNIConfig
+	cnicapabilities []*CNICapabilities
+	result          []*Result
 }
 
 type resultOwners map[string]*owners
@@ -134,6 +139,28 @@ func collectStopContainerResult() *result {
 	return collectUpdateContainerResult(nil)
 }
 
+func collectPreSetupNetworkResult(request *PreSetupNetworkRequest) *result {
+	return &result{
+		request: resultRequest{
+			presetupnetwork: request,
+		},
+		reply:   resultReply{},
+		updates: nil,
+		owners:  resultOwners{},
+	}
+}
+
+func collectPostSetupNetworkResult(request *PostSetupNetworkRequest) *result {
+	return &result{
+		request: resultRequest{
+			postsetupnetwork: request,
+		},
+		reply:   resultReply{},
+		updates: nil,
+		owners:  resultOwners{},
+	}
+}
+
 func (r *result) createContainerResponse() *CreateContainerResponse {
 	return &CreateContainerResponse{
 		Adjust: r.reply.adjust,
@@ -151,6 +178,18 @@ func (r *result) updateContainerResponse() *UpdateContainerResponse {
 func (r *result) stopContainerResponse() *StopContainerResponse {
 	return &StopContainerResponse{
 		Update: r.reply.update,
+	}
+}
+
+func (r *result) preSetupNetworkResponse() *PreSetupNetworkResponse {
+	return &PreSetupNetworkResponse{
+		CniCapabilities: r.reply.cnicapabilities,
+	}
+}
+
+func (r *result) postSetupNetworkResponse() *PostSetupNetworkResponse {
+	return &PostSetupNetworkResponse{
+		Result: r.reply.result,
 	}
 }
 
@@ -178,6 +217,20 @@ func (r *result) apply(response interface{}, plugin string) error {
 			return nil
 		}
 		if err := r.update(rpl.Update, plugin); err != nil {
+			return err
+		}
+	case *PreSetupNetworkResponse:
+		if rpl == nil {
+			return nil
+		}
+		if err := r.adjustPreSetupNetwork(rpl.CniCapabilities, plugin); err != nil {
+			return err
+		}
+	case *PostSetupNetworkResponse:
+		if rpl == nil {
+			return nil
+		}
+		if err := r.adjustPostSetupNetwork(rpl.Result, plugin); err != nil {
 			return err
 		}
 	default:
@@ -676,6 +729,39 @@ func (r *result) adjustRlimits(rlimits []*POSIXRlimit, plugin string) error {
 		create.Container.Rlimits = append(create.Container.Rlimits, l)
 		adjust.Rlimits = append(adjust.Rlimits, l)
 	}
+
+	return nil
+}
+
+func (r *result) adjustPreSetupNetwork(capabilities []*CNICapabilities, plugin string) error {
+	id := r.request.create.Container.Id
+
+	if len(capabilities) == 0 {
+		return nil
+	}
+
+	if err := r.owners.claimPreSetupNetwork(id, plugin); err != nil {
+		return err
+	}
+
+	r.reply.cnicapabilities = capabilities
+
+	return nil
+}
+
+func (r *result) adjustPostSetupNetwork(result []*Result, plugin string) error {
+	id := r.request.create.Container.Id
+
+	if len(result) == 0 {
+		return nil
+	}
+
+	if err := r.owners.claimPostSetupNetwork(id, plugin); err != nil {
+		return err
+	}
+
+	r.reply.result = result
+
 	return nil
 }
 
@@ -894,6 +980,9 @@ type owners struct {
 	unified             map[string]string
 	cgroupsPath         string
 	rlimits             map[string]string
+
+	PreSetupNetwork     string
+	PostSetupNetwork    string
 }
 
 func (ro resultOwners) ownersFor(id string) *owners {
@@ -1003,6 +1092,14 @@ func (ro resultOwners) claimCgroupsPath(id, plugin string) error {
 
 func (ro resultOwners) claimRlimits(id, typ, plugin string) error {
 	return ro.ownersFor(id).claimRlimit(typ, plugin)
+}
+
+func (ro resultOwners) claimPreSetupNetwork(id, plugin string) error {
+	return ro.ownersFor(id).claimPreSetupNetwork(plugin)
+}
+
+func (ro resultOwners) claimPostSetupNetwork(id, plugin string) error {
+	return ro.ownersFor(id).claimPostSetupNetwork(plugin)
 }
 
 func (o *owners) claimAnnotation(key, plugin string) error {
@@ -1224,6 +1321,22 @@ func (o *owners) claimCgroupsPath(plugin string) error {
 		return conflict(plugin, other, "cgroups path")
 	}
 	o.cgroupsPath = plugin
+	return nil
+}
+
+func (o *owners) claimPreSetupNetwork(plugin string) error {
+	if other := o.PreSetupNetwork; other != "" {
+		return conflict(plugin, other, "adjust pod sandbox pre setup network")
+	}
+	o.PreSetupNetwork = plugin
+	return nil
+}
+
+func (o *owners) claimPostSetupNetwork(plugin string) error {
+	if other := o.PostSetupNetwork; other != "" {
+		return conflict(plugin, other, "adjust pod sandbox post setup network")
+	}
+	o.PostSetupNetwork = plugin
 	return nil
 }
 
