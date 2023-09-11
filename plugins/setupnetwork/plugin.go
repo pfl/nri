@@ -84,6 +84,14 @@ func (p *plugin) RemovePodSandbox(pod *api.PodSandbox) error {
 	return nil
 }
 
+func (p *plugin) NetworkConfigurationChanged(cniconfigs []*api.CNIConfig) ([]*api.CNIConfig, error) {
+	for _, config := range cniconfigs {
+		log.Infof("NetworkConfigurationChanged for %s %s...",
+			config.Name, config.NetworkConf)
+	}
+	return nil, nil
+}
+
 const QoSResourceNet = "net"
 
 var qosbandwidth = map[string]cni.BandWidth{
