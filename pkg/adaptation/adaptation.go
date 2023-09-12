@@ -333,6 +333,19 @@ func (r *Adaptation) PostSetupNetwork(ctx context.Context, req *PostSetupNetwork
 	return result.postSetupNetworkResponse(), nil
 }
 
+func (r *Adaptation) NetworkDeleted(ctx context.Context, req *NetworkDeletedRequest) error {
+	r.Lock()
+	defer r.Unlock()
+	defer r.removeClosedPlugins()
+
+	for _, plugin := range r.plugins {
+		if _, err := plugin.networkDeleted(ctx, req); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // StateChange relays pod- or container events to plugins.
 func (r *Adaptation) StateChange(ctx context.Context, evt *StateChangeEvent) error {
 	if evt.Event == Event_UNKNOWN {
