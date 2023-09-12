@@ -147,6 +147,10 @@ type PostSetupNetworkInterface interface {
 	PostSetupNetwork(context.Context, *api.PodSandbox, []*api.Result) ([]*api.Result, error)
 }
 
+type NetworkDeletedInterface interface {
+	NetworkDeleted(context.Context, *api.PodSandbox) error
+}
+
 // Stub is the interface the stub provides for the plugin implementation.
 type Stub interface {
 	// Run the plugin. Starts the plugin then waits for an error or the plugin to stop
@@ -283,6 +287,7 @@ type handlers struct {
 	NetworkConfigurationChanged func(context.Context, []*api.CNIConfig) ([]*api.CNIConfig, error)
 	PreSetupNetwork             func(context.Context, *api.PodSandbox, []*api.CNIConfig) ([]*api.CNICapabilities, error)
 	PostSetupNetwork            func(context.Context, *api.PodSandbox, []*api.Result) ([]*api.Result, error)
+	NetworkDeleted              func(context.Context, *api.PodSandbox) error
 }
 
 // New creates a stub with the given plugin and options.
@@ -685,6 +690,15 @@ func (stub *stub) PostSetupNetwork(ctx context.Context, req *api.PostSetupNetwor
 	}, err
 }
 
+func (stub *stub) NetworkDeleted(ctx context.Context, req *api.NetworkDeletedRequest) (*api.NetworkDeletedResponse, error) {
+	handler := stub.handlers.NetworkDeleted
+	if handler == nil {
+		return nil, nil
+	}
+
+	return nil, handler(ctx, req.Pod)
+}
+
 // StateChange event handler.
 func (stub *stub) StateChange(ctx context.Context, evt *api.StateChangeEvent) (*api.Empty, error) {
 	var err error
@@ -816,6 +830,10 @@ func (stub *stub) setupHandlers() error {
 	if plugin, ok := stub.plugin.(PostSetupNetworkInterface); ok {
 		stub.handlers.PostSetupNetwork = plugin.PostSetupNetwork
 		stub.events.Set(api.Event_POST_SETUP_NETWORK)
+	}
+	if plugin, ok := stub.plugin.(NetworkDeletedInterface); ok {
+		stub.handlers.NetworkDeleted = plugin.NetworkDeleted
+		stub.events.Set(api.Event_NETWORK_DELETED)
 	}
 
 	if stub.events == 0 {
