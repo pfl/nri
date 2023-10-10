@@ -157,6 +157,12 @@ func (p *plugin) PostSetupNetwork(_ context.Context, pod *api.PodSandbox, result
 	return result, nil
 }
 
+func (p *plugin) NetworkDeleted(_ context.Context, pod *api.PodSandbox) error {
+	log.Infof("NetworkDeleted for %s/%s...", pod.GetNamespace(), pod.GetName())
+
+	return nil
+}
+
 func (p *plugin) onClose() {
 	log.Infof("Connection to the runtime lost, exiting...")
 	os.Exit(0)
