@@ -276,6 +276,44 @@ func (r *Adaptation) RemoveContainer(ctx context.Context, evt *StateChangeEvent)
 	return r.StateChange(ctx, evt)
 }
 
+func (r *Adaptation) PreSetupNetwork(ctx context.Context, req *PreSetupNetworkRequest) (*PreSetupNetworkResponse, error) {
+	r.Lock()
+	defer r.Unlock()
+	defer r.removeClosedPlugins()
+
+	result := collectPreSetupNetworkResult(req)
+	for _, plugin := range r.plugins {
+		reply, err := plugin.preSetupNetwork(ctx, req)
+		if err != nil {
+			return nil, err
+		}
+		err = result.apply(reply, plugin.name())
+		if err != nil {
+			return nil, err
+		}
+	}
+	return result.preSetupNetworkResponse(), nil
+}
+
+func (r *Adaptation) PostSetupNetwork(ctx context.Context, req *PostSetupNetworkRequest) (*PostSetupNetworkResponse, error) {
+	r.Lock()
+	defer r.Unlock()
+	defer r.removeClosedPlugins()
+
+	result := collectPostSetupNetworkResult(req)
+	for _, plugin := range r.plugins {
+		reply, err := plugin.postSetupNetwork(ctx, req)
+		if err != nil {
+			return nil, err
+		}
+		err = result.apply(reply, plugin.name())
+		if err != nil {
+			return nil, err
+		}
+	}
+	return result.postSetupNetworkResponse(), nil
+}
+
 // StateChange relays pod- or container events to plugins.
 func (r *Adaptation) StateChange(ctx context.Context, evt *StateChangeEvent) error {
 	if evt.Event == Event_UNKNOWN {
