@@ -82,33 +82,66 @@ func (p *plugin) NetworkConfigurationChanged(_ context.Context, cniconfigs []*ap
 	return cniconfigs, nil
 }
 
+type CNIQoSClass struct {
+	// Capacity is the max number of simultaneous pods that can use this class
+	Capacity  uint64
+	Bandwidth *cni.BandWidth
+}
+
+type CNIQoSConfig struct {
+	Name string                 `json:"name,omitempty"`
+	QoS map[string]CNIQoSClass `json:"qos,omitempty"`
+}
+
+const QoSResourceNet = "net"
+
 func (p *plugin) PreSetupNetwork(_ context.Context, pod *api.PodSandbox, cniconfigs []*api.CNIConfig) ([]*api.CNICapabilities, error) {
 	var err error
 	caps := make(map[string][]byte)
 	cnicaps := []*api.CNICapabilities{}
+	qosconfig := &CNIQoSConfig{}
 
 	log.Infof("PreSetupNetwork for '%s/%s'...", pod.GetNamespace(), pod.GetName())
-	log.Infof("PreSetupNetwork for '%s/%s' received CNI configs '%v'...", pod.GetNamespace(), pod.GetName(), cniconfigs)
 
-	bandwidth := cni.BandWidth{
-		IngressRate:  450000,
-		IngressBurst: 1000000,
-		EgressRate:   600000,
-		EgressBurst:  800000,
-	}
+	// bandwidth := cni.BandWidth{
+	// 	IngressRate:  450000,
+	// 	IngressBurst: 1000000,
+	// 	EgressRate:   600000,
+	// 	EgressBurst:  800000,
+	// }
 
-	if caps["bandwidth"], err = json.Marshal(bandwidth); err != nil {
-		log.Infof("Could not marshal struct %e", err)
+	// if caps["bandwidth"], err = json.Marshal(bandwidth); err != nil {
+	// 	log.Infof("Could not marshal struct %e", err)
+	// 	return nil, nil
+	// }
+
+	qosclass := pod.Annotations[QoSResourceNet]
+	if len(qosclass) == 0 {
 		return nil, nil
 	}
 
-	for _, config := range cniconfigs {
-		if config.Name != "cni-loopback" {
-			cnicaps = append(cnicaps, &api.CNICapabilities{
-				Name:         config.Name,
-				Capabilities: caps,
-			})
+	for i, config := range cniconfigs {
+		log.Infof("PreSetupNetwork for '%s/%s' received CNI config %d/%d '%v'...", pod.GetNamespace(), pod.GetName(), i+1, len(cniconfigs), config)
+		if config.Name == "cni-loopback" {
+			continue
 		}
+
+		if err := json.Unmarshal([]byte(config.NetworkConf), &qosconfig); err != nil {
+			continue
+		}
+
+		log.Infof("CNI config '%s' bandwidth: %v", config.Name, qosconfig.QoS)
+
+		if caps["bandwidth"], err = json.Marshal(qosconfig.QoS[qosclass].Bandwidth); err != nil {
+			log.Infof("CNI config '%s' bandwidth marshalling error: %w", config.Name, err)
+			continue
+		}
+		cnicaps = append(cnicaps, &api.CNICapabilities{
+			Name:         config.Name,
+			Capabilities: caps,
+		})
+
+		log.Infof("CNI config '%s' QoS class '%s' bandwidth %v", config.Name, qosclass, caps["bandwidth"])
 	}
 
 	log.Infof("Returning CNI capabilities '%v'", cnicaps)
